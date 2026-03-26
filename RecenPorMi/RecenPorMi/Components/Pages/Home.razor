@@ -3,8 +3,10 @@
 @using RecenPorMi.Data.Models
 @using RecenPorMi.Components.Shared
 @using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Components.Authorization
 @inject RecenPorMi.Services.IPeticionService PeticionService
 @inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @implements IAsyncDisposable
 
 <PageTitle>Recen Por Mí - Intenciones de Oración</PageTitle>
@@ -25,9 +27,9 @@
                     Juntos somos más fuertes en la fe.
                 </p>
                 <div class="d-flex gap-3 flex-wrap justify-content-center justify-content-lg-start">
-                    <a href="/publicar" class="btn btn-light btn-lg px-4 shadow">
+                    <button @onclick="NavegarAPublicar" class="btn btn-light btn-lg px-4 shadow">
                         <span class="me-2">✨</span> Publicar Intención
-                    </a>
+                    </button>
                     <a href="#intenciones" class="btn btn-outline-light btn-lg px-4">
                         <span class="me-2">📿</span> Ver Intenciones
                     </a>
@@ -80,9 +82,9 @@
                 </div>
                 <h3 class="mb-3">No hay intenciones publicadas aún</h3>
                 <p class="text-muted mb-4">¡Sé el primero en compartir una intención de oración!</p>
-                <a href="/publicar" class="btn btn-primary btn-lg">
+                <button @onclick="NavegarAPublicar" class="btn btn-primary btn-lg">
                     <span class="me-2">✨</span> Publicar Primera Intención
-                </a>
+                </button>
             </div>
         }
         else
@@ -112,6 +114,25 @@
     {
         await InicializarSignalR();
         await CargarPeticiones();
+    }
+
+    private async Task NavegarAPublicar()
+    {
+        // Verificar si el usuario está autenticado
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            // Usuario autenticado, navegar a la página de publicar
+            NavigationManager.NavigateTo("/publicar");
+        }
+        else
+        {
+            // Usuario no autenticado, redirigir al login con returnUrl
+            var returnUrl = Uri.EscapeDataString("/publicar");
+            NavigationManager.NavigateTo($"/Account/Login?returnUrl={returnUrl}", forceLoad: true);
+        }
     }
 
     private async Task InicializarSignalR()
