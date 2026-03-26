@@ -251,43 +251,71 @@
     {
         mensajeImagenes = string.Empty;
 
-        var archivos = e.GetMultipleFiles(MaxImagenes);
-
-        if (archivosSeleccionados.Count + archivos.Count > MaxImagenes)
+        try
         {
-            mensajeImagenes = $"❌ Solo puedes subir un máximo de {MaxImagenes} imágenes.";
-            return;
-        }
+            var archivos = e.GetMultipleFiles(MaxImagenes);
 
-        foreach (var archivo in archivos)
-        {
-            // Validar tamaño
-            if (archivo.Size > MaxTamañoArchivo)
+            if (archivosSeleccionados.Count + archivos.Count > MaxImagenes)
             {
-                mensajeImagenes = $"❌ El archivo {archivo.Name} excede el tamaño máximo de 5MB.";
-                continue;
+                mensajeImagenes = $"❌ Solo puedes subir un máximo de {MaxImagenes} imágenes.";
+                return;
             }
 
-            // Validar tipo
-            if (!archivo.ContentType.StartsWith("image/"))
+            foreach (var archivo in archivos)
             {
-                mensajeImagenes = $"❌ El archivo {archivo.Name} no es una imagen válida.";
-                continue;
+                try
+                {
+                    // Validar tamaño
+                    if (archivo.Size > MaxTamañoArchivo)
+                    {
+                        mensajeImagenes = $"❌ El archivo {archivo.Name} excede el tamaño máximo de 5MB.";
+                        continue;
+                    }
+
+                    // Validar tipo
+                    if (!archivo.ContentType.StartsWith("image/"))
+                    {
+                        mensajeImagenes = $"❌ El archivo {archivo.Name} no es una imagen válida.";
+                        continue;
+                    }
+
+                    Console.WriteLine($"Procesando archivo: {archivo.Name}, Tamaño: {archivo.Size} bytes");
+
+                    // Agregar archivo
+                    archivosSeleccionados.Add(archivo);
+
+                    // Crear preview con Data URL (con tamaño máximo más pequeño para preview)
+                    using (var stream = archivo.OpenReadStream(MaxTamañoArchivo))
+                    {
+                        var buffer = new byte[archivo.Size];
+                        var bytesRead = await stream.ReadAsync(buffer);
+
+                        Console.WriteLine($"Bytes leídos: {bytesRead}");
+
+                        var imageType = archivo.ContentType;
+                        var base64 = Convert.ToBase64String(buffer);
+                        var dataUrl = $"data:{imageType};base64,{base64}";
+                        imagenesPrevisualizacion.Add(dataUrl);
+                    }
+
+                    Console.WriteLine($"Preview creado exitosamente para: {archivo.Name}");
+                }
+                catch (Exception exFile)
+                {
+                    mensajeImagenes = $"❌ Error al procesar {archivo.Name}: {exFile.Message}";
+                    Console.WriteLine($"Error al procesar archivo {archivo.Name}: {exFile.Message}");
+                    Console.WriteLine($"Stack: {exFile.StackTrace}");
+                }
             }
 
-            // Agregar archivo
-            archivosSeleccionados.Add(archivo);
-
-            // Crear preview con Data URL
-            var buffer = new byte[archivo.Size];
-            await archivo.OpenReadStream(MaxTamañoArchivo).ReadAsync(buffer);
-            var imageType = archivo.ContentType;
-            var base64 = Convert.ToBase64String(buffer);
-            var dataUrl = $"data:{imageType};base64,{base64}";
-            imagenesPrevisualizacion.Add(dataUrl);
+            StateHasChanged();
         }
-
-        StateHasChanged();
+        catch (Exception ex)
+        {
+            mensajeImagenes = $"❌ Error general al cargar imágenes: {ex.Message}";
+            Console.WriteLine($"Error en HandleFileSelection: {ex.Message}");
+            Console.WriteLine($"Stack: {ex.StackTrace}");
+        }
     }
 
     private void EliminarImagen(int index)

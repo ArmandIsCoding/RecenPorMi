@@ -15,6 +15,12 @@ namespace RecenPorMi
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Configurar Kestrel para permitir archivos más grandes
+            builder.WebHost.ConfigureKestrel(serverOptions =>
+            {
+                serverOptions.Limits.MaxRequestBodySize = 50 * 1024 * 1024; // 50MB
+            });
+
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
@@ -50,7 +56,20 @@ namespace RecenPorMi
             builder.Services.AddScoped<IPeticionService, PeticionService>();
 
             // SignalR para actualizaciones en tiempo real
-            builder.Services.AddSignalR();
+            builder.Services.AddSignalR(options =>
+            {
+                // Aumentar límites para permitir carga de imágenes
+                options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10MB (para múltiples imágenes)
+                options.EnableDetailedErrors = true; // Habilitar errores detallados en desarrollo
+            });
+
+            // Configurar límites para formularios (para InputFile)
+            builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+            {
+                options.MultipartBodyLengthLimit = 50 * 1024 * 1024; // 50MB total
+                options.ValueLengthLimit = int.MaxValue;
+                options.MultipartHeadersLengthLimit = int.MaxValue;
+            });
 
             var app = builder.Build();
 
