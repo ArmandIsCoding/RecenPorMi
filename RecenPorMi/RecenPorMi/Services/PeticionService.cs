@@ -9,7 +9,7 @@ namespace RecenPorMi.Services
     public interface IPeticionService
     {
         Task<List<Peticion>> ObtenerPeticionesRecientesAsync();
-        Task<Peticion> CrearPeticionAsync(string contenido, string alias);
+        Task<Peticion> CrearPeticionAsync(string contenido, string userId, bool publicarAnonimamente);
         Task<bool> RegistrarRezoAsync(int peticionId, string ipAddress);
     }
 
@@ -25,17 +25,19 @@ namespace RecenPorMi.Services
         public async Task<List<Peticion>> ObtenerPeticionesRecientesAsync()
         {
             return await _context.Peticiones
+                .Include(p => p.Usuario) // Incluir usuario para mostrar nombre real
                 .OrderByDescending(p => p.FechaPublicacion)
                 .Take(50)
                 .ToListAsync();
         }
 
-        public async Task<Peticion> CrearPeticionAsync(string contenido, string alias)
+        public async Task<Peticion> CrearPeticionAsync(string contenido, string userId, bool publicarAnonimamente)
         {
             var peticion = new Peticion
             {
                 Contenido = contenido.Trim(),
-                Alias = string.IsNullOrWhiteSpace(alias) ? "Anónimo" : alias.Trim(),
+                UserId = userId,
+                PublicarAnonimamente = publicarAnonimamente,
                 FechaPublicacion = DateTime.Now
             };
 

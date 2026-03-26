@@ -13,7 +13,14 @@ namespace RecenPorMi.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configuración de relaciones
+            // Configuración de relación Peticion -> Usuario
+            modelBuilder.Entity<Peticion>()
+                .HasOne(p => p.Usuario)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configuración de relaciones Rezo -> Peticion
             modelBuilder.Entity<Rezo>()
                 .HasOne(r => r.Peticion)
                 .WithMany(p => p.Rezos)
@@ -23,6 +30,9 @@ namespace RecenPorMi.Data
             // Índices para mejorar el rendimiento
             modelBuilder.Entity<Peticion>()
                 .HasIndex(p => p.FechaPublicacion);
+
+            modelBuilder.Entity<Peticion>()
+                .HasIndex(p => p.UserId);
 
             modelBuilder.Entity<Rezo>()
                 .HasIndex(r => new { r.PeticionId, r.IpHash, r.Fecha });

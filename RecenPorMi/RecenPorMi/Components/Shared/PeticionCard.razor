@@ -4,7 +4,7 @@
 
 <div class="peticion-card">
     <div class="peticion-header">
-        <span class="peticion-alias">@Peticion.Alias</span>
+        <span class="peticion-alias">@ObtenerNombreAutor()</span>
         <span class="peticion-fecha">@FormatearFecha(Peticion.FechaPublicacion)</span>
     </div>
     <div class="peticion-contenido">
@@ -120,5 +120,16 @@
             return $"Hace {(int)diferencia.TotalDays}d";
 
         return fecha.ToString("dd/MM/yyyy");
+    }
+
+    private string ObtenerNombreAutor()
+    {
+        if (Peticion.PublicarAnonimamente)
+        {
+            return "Anónimo";
+        }
+
+        // ✅ Mostrar DisplayName en lugar del email
+        return Peticion.Usuario?.DisplayName ?? "Usuario";
     }
 }

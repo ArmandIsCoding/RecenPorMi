@@ -1,9 +1,13 @@
 @page "/publicar"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using RecenPorMi.Data.Models
 @using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
 @inject RecenPorMi.Services.IPeticionService PeticionService
 @inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Publicar Intención - Recen Por Mí</PageTitle>
 
@@ -27,20 +31,6 @@
                             <DataAnnotationsValidator />
 
                             <div class="mb-4">
-                                <label for="alias" class="form-label fw-semibold">
-                                    <span class="me-2">👤</span> Tu nombre (opcional)
-                                </label>
-                                <InputText id="alias" 
-                                          class="form-control form-control-lg" 
-                                          @bind-Value="nuevaPeticion.Alias" 
-                                          placeholder="Anónimo" 
-                                          maxlength="50" />
-                                <div class="form-text">
-                                    Si no ingresas un nombre, aparecerás como "Anónimo"
-                                </div>
-                            </div>
-
-                            <div class="mb-4">
                                 <label for="contenido" class="form-label fw-semibold">
                                     <span class="me-2">📝</span> Tu intención de oración *
                                 </label>
@@ -53,6 +43,21 @@
                                 <ValidationMessage For="@(() => nuevaPeticion.Contenido)" class="text-danger" />
                                 <div class="form-text">
                                     Máximo 500 caracteres. Sé respetuoso y claro.
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="form-check form-switch">
+                                    <InputCheckbox id="publicarAnonimamente" 
+                                                  class="form-check-input" 
+                                                  @bind-Value="nuevaPeticion.PublicarAnonimamente" />
+                                    <label class="form-check-label" for="publicarAnonimamente">
+                                        <span class="me-2">🎭</span> Publicar anónimamente
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    Si está activado, tu intención aparecerá como "Anónimo". 
+                                    Si está desactivado, se mostrará tu nombre de usuario.
                                 </div>
                             </div>
 
@@ -100,9 +105,21 @@
     private string mensajePublicacion = string.Empty;
     private bool mensajeExitoso = true;
     private HubConnection? hubConnection;
+    private string? userId;
 
     protected override async Task OnInitializedAsync()
     {
+        // Obtener el UserId del usuario autenticado
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            // Si no hay usuario autenticado, redirigir al login
+            NavigationManager.NavigateTo("/Account/Login", forceLoad: true);
+            return;
+        }
+
         await InicializarSignalR();
     }
 
@@ -125,6 +142,13 @@
 
     private async Task PublicarPeticion()
     {
+        if (string.IsNullOrEmpty(userId))
+        {
+            mensajePublicacion = "❌ Error: Usuario no autenticado.";
+            mensajeExitoso = false;
+            return;
+        }
+
         publicando = true;
         mensajePublicacion = string.Empty;
 
@@ -132,7 +156,8 @@
         {
             await PeticionService.CrearPeticionAsync(
                 nuevaPeticion.Contenido, 
-                nuevaPeticion.Alias);
+                userId,
+                nuevaPeticion.PublicarAnonimamente);
 
             mensajePublicacion = "✅ ¡Tu intención ha sido publicada con éxito!";
             mensajeExitoso = true;
@@ -171,10 +196,10 @@
 
     public class NuevaPeticionModel
     {
-        public string Alias { get; set; } = string.Empty;
-
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La intención es requerida")]
         [System.ComponentModel.DataAnnotations.MaxLength(500)]
         public string Contenido { get; set; } = string.Empty;
+
+        public bool PublicarAnonimamente { get; set; } = true;
     }
 }

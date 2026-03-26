@@ -37,7 +37,7 @@ namespace RecenPorMi
 
             builder.Services.AddIdentityCore<ApplicationUser>(options =>
                 {
-                    options.SignIn.RequireConfirmedAccount = true;
+                    options.SignIn.RequireConfirmedAccount = false; // ✅ No requiere confirmación de email
                     options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
                 })
                 .AddEntityFrameworkStores<ApplicationDbContext>()

@@ -1,58 +1,321 @@
 ﻿@page "/Account/Register"
 
 @using System.ComponentModel.DataAnnotations
-@using System.Text
-@using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
-@using Microsoft.AspNetCore.WebUtilities
 @using RecenPorMi.Data
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IUserStore<ApplicationUser> UserStore
 @inject SignInManager<ApplicationUser> SignInManager
-@inject IEmailSender<ApplicationUser> EmailSender
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Register</PageTitle>
+<PageTitle>Crear Cuenta - Recen Por Mí</PageTitle>
 
-<h1>Register</h1>
+<!-- Auth Container con Gradiente de Fondo -->
+<div class="auth-container">
+    <div class="auth-gradient-bg"></div>
 
-<div class="row">
-    <div class="col-lg-6">
-        <StatusMessage Message="@Message" />
-        <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
-            <DataAnnotationsValidator />
-            <h2>Create a new account.</h2>
-            <hr />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label for="Input.Email">Email</label>
-                <ValidationMessage For="() => Input.Email" class="text-danger" />
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100 py-5">
+            <div class="col-11 col-sm-10 col-md-8 col-lg-6 col-xl-5 col-xxl-4">
+
+                <!-- Auth Card -->
+                <div class="auth-card">
+                    <!-- Logo y Título -->
+                    <div class="auth-header text-center mb-4">
+                        <a href="/" class="auth-logo-link">
+                            <h1 class="auth-logo mb-2">🙏 Recen Por Mí</h1>
+                        </a>
+                        <h2 class="auth-title mb-2">Únete a la Comunidad</h2>
+                        <p class="auth-subtitle text-muted">Crea tu cuenta para compartir intenciones</p>
+                    </div>
+
+                    <!-- Error Messages -->
+                    @if (!string.IsNullOrEmpty(Message))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <strong>❌</strong> @Message
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <!-- Register Form -->
+                    <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label for="Input.DisplayName" class="form-label fw-semibold">
+                                <span class="me-2">👤</span> Nombre para Mostrar
+                            </label>
+                            <InputText @bind-Value="Input.DisplayName" 
+                                      id="Input.DisplayName" 
+                                      class="form-control form-control-lg auth-input" 
+                                      placeholder="Ej: Juan Pérez" 
+                                      maxlength="50" />
+                            <ValidationMessage For="() => Input.DisplayName" class="text-danger small mt-1" />
+                            <small class="form-text text-muted">
+                                Este nombre se mostrará en tus intenciones públicas
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="Input.Email" class="form-label fw-semibold">
+                                <span class="me-2">📧</span> Correo Electrónico
+                            </label>
+                            <InputText @bind-Value="Input.Email" 
+                                      id="Input.Email" 
+                                      class="form-control form-control-lg auth-input" 
+                                      autocomplete="username" 
+                                      placeholder="tu@email.com" />
+                            <ValidationMessage For="() => Input.Email" class="text-danger small mt-1" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="Input.Password" class="form-label fw-semibold">
+                                <span class="me-2">🔒</span> Contraseña
+                            </label>
+                            <InputText type="password" 
+                                      @bind-Value="Input.Password" 
+                                      id="Input.Password" 
+                                      class="form-control form-control-lg auth-input" 
+                                      autocomplete="new-password" 
+                                      placeholder="Mínimo 6 caracteres" />
+                            <ValidationMessage For="() => Input.Password" class="text-danger small mt-1" />
+                            <small class="form-text text-muted">
+                                Mínimo 6 caracteres, incluye mayúsculas, números y símbolos
+                            </small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="Input.ConfirmPassword" class="form-label fw-semibold">
+                                <span class="me-2">✅</span> Confirmar Contraseña
+                            </label>
+                            <InputText type="password" 
+                                      @bind-Value="Input.ConfirmPassword" 
+                                      id="Input.ConfirmPassword" 
+                                      class="form-control form-control-lg auth-input" 
+                                      autocomplete="new-password" 
+                                      placeholder="Repite tu contraseña" />
+                            <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger small mt-1" />
+                        </div>
+
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg btn-gradient-purple auth-btn">
+                                <span class="me-2">✨</span> Crear Cuenta
+                            </button>
+                        </div>
+
+                    </EditForm>
+
+                    <!-- Auth Links -->
+                    <div class="auth-links">
+                        <hr class="my-4" />
+
+                        <div class="text-center">
+                            <p class="text-muted mb-2">¿Ya tienes cuenta?</p>
+                            <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Login", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))" 
+                               class="btn btn-outline-primary btn-lg w-100">
+                                <span class="me-2">🚪</span> Iniciar Sesión
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- External Logins (si están configurados) -->
+                    @* <div class="mt-4">
+                        <div class="text-center mb-3">
+                            <span class="text-muted">O regístrate con</span>
+                        </div>
+                        <ExternalLoginPicker />
+                    </div> *@
+
+                </div>
+
+                <!-- Back to Home -->
+                <div class="text-center mt-4">
+                    <a href="/" class="text-white text-decoration-none">
+                        <span class="me-2">←</span> Volver al inicio
+                    </a>
+                </div>
+
             </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.Password">Password</label>
-                <ValidationMessage For="() => Input.Password" class="text-danger" />
-            </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.ConfirmPassword">Confirm Password</label>
-                <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
-            </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
-        </EditForm>
-    </div>
-    <div class="col-lg-4 col-lg-offset-2">
-        <section>
-            <h3>Use another service to register.</h3>
-            <hr />
-            <ExternalLoginPicker />
-        </section>
+        </div>
     </div>
 </div>
+
+<style>
+    /* Auth Container */
+    .auth-container {
+        position: relative;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .auth-gradient-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        z-index: -1;
+    }
+
+    .auth-gradient-bg::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+        animation: pulse 10s ease-in-out infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* Auth Card */
+    .auth-card {
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        padding: 3rem 2.5rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        animation: slideUp 0.6s ease-out;
+    }
+
+    @@keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .auth-card {
+            padding: 2rem 1.5rem;
+        }
+    }
+
+    /* Auth Header */
+    .auth-logo-link {
+        text-decoration: none;
+    }
+
+    .auth-logo {
+        font-size: 2.5rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+    }
+
+    .auth-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin: 0;
+    }
+
+    .auth-subtitle {
+        font-size: 1rem;
+        color: #718096;
+    }
+
+    /* Auth Inputs */
+    .auth-input {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .auth-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        outline: none;
+    }
+
+    .auth-input::placeholder {
+        color: #a0aec0;
+    }
+
+    /* Auth Button */
+    .auth-btn {
+        border-radius: 12px;
+        padding: 0.875rem 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .auth-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .auth-btn:active {
+        transform: translateY(0);
+    }
+
+    /* Auth Links */
+    .auth-links {
+        margin-top: 1.5rem;
+    }
+
+    .auth-link {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+    .auth-link:hover {
+        color: #764ba2;
+        text-decoration: underline;
+    }
+
+    /* Form Labels */
+    .form-label {
+        color: #2d3748;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Form Text */
+    .form-text {
+        font-size: 0.85rem;
+        color: #718096;
+    }
+
+    /* Alert Styling */
+    .alert {
+        border-radius: 12px;
+        border: none;
+    }
+
+    .alert-danger {
+        background-color: #fed7d7;
+        color: #c53030;
+    }
+</style>
 
 @code {
     private IEnumerable<IdentityError>? identityErrors;
@@ -63,7 +326,7 @@
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
-    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+    private string? Message => identityErrors is null ? null : string.Join(" • ", identityErrors.Select(error => error.Description));
 
     protected override void OnInitialized()
     {
@@ -73,6 +336,9 @@
     public async Task RegisterUser(EditContext editContext)
     {
         var user = CreateUser();
+
+        // ✅ Asignar DisplayName
+        user.DisplayName = Input.DisplayName.Trim();
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
         var emailStore = GetEmailStore();
@@ -87,26 +353,16 @@
 
         Logger.LogInformation("User created a new account with password.");
 
+        // ✅ Confirmar automáticamente el email sin necesidad de envío
         var userId = await UserManager.GetUserIdAsync(user);
         var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
-            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
-            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+        await UserManager.ConfirmEmailAsync(user, code);
 
-        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+        Logger.LogInformation("Email automatically confirmed for new user.");
 
-        if (UserManager.Options.SignIn.RequireConfirmedAccount)
-        {
-            RedirectManager.RedirectTo(
-                "Account/RegisterConfirmation",
-                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
-        }
-        else
-        {
-            await SignInManager.SignInAsync(user, isPersistent: false);
-            RedirectManager.RedirectTo(ReturnUrl);
-        }
+        // ✅ Iniciar sesión automáticamente y redirigir al home
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        RedirectManager.RedirectTo(ReturnUrl ?? "/");
     }
 
     private ApplicationUser CreateUser()
@@ -133,20 +389,26 @@
 
     private sealed class InputModel
     {
-        [Required]
-        [EmailAddress]
+        [Required(ErrorMessage = "El nombre para mostrar es requerido")]
+        [StringLength(50, ErrorMessage = "El nombre no puede tener más de 50 caracteres.")]
+        [Display(Name = "Nombre para Mostrar")]
+        public string DisplayName { get; set; } = "";
+
+        [Required(ErrorMessage = "El email es requerido")]
+        [EmailAddress(ErrorMessage = "El email no es válido")]
         [Display(Name = "Email")]
         public string Email { get; set; } = "";
 
-        [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [Required(ErrorMessage = "La contraseña es requerida")]
+        [StringLength(100, ErrorMessage = "La contraseña debe tener entre {2} y {1} caracteres.", MinimumLength = 6)]
         [DataType(DataType.Password)]
-        [Display(Name = "Password")]
+        [Display(Name = "Contraseña")]
         public string Password { get; set; } = "";
 
+        [Required(ErrorMessage = "Debes confirmar la contraseña")]
         [DataType(DataType.Password)]
-        [Display(Name = "Confirm password")]
-        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        [Display(Name = "Confirmar contraseña")]
+        [Compare("Password", ErrorMessage = "Las contraseñas no coinciden.")]
         public string ConfirmPassword { get; set; } = "";
     }
 }

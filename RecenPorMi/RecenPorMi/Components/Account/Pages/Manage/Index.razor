@@ -8,34 +8,229 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Profile</PageTitle>
+<PageTitle>Mi Perfil - Recen Por Mí</PageTitle>
 
-<h3>Profile</h3>
-<StatusMessage />
+<!-- Manage Container -->
+<div class="manage-container py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-10 col-xl-8">
 
-<div class="row">
-    <div class="col-xl-6">
-        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
-            <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <input type="text" value="@username" id="username" class="form-control" placeholder="Choose your username." disabled />
-                <label for="username" class="form-label">Username</label>
+                <!-- Header -->
+                <div class="manage-header text-center mb-5">
+                    <h1 class="display-5 fw-bold mb-2">
+                        <span class="me-2">👤</span> Mi Perfil
+                    </h1>
+                    <p class="lead text-muted">Administra tu información personal</p>
+                </div>
+
+                <!-- Status Message -->
+                <StatusMessage />
+
+                <!-- Profile Card -->
+                <div class="manage-card">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            <span class="me-2">✏️</span> Información Personal
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+                            <DataAnnotationsValidator />
+
+                            <!-- Email (read-only) -->
+                            <div class="mb-4">
+                                <label for="email" class="form-label fw-semibold">
+                                    <span class="me-2">📧</span> Correo Electrónico
+                                </label>
+                                <input type="text" 
+                                       value="@username" 
+                                       id="email" 
+                                       class="form-control form-control-lg manage-input" 
+                                       disabled />
+                                <small class="form-text text-muted">
+                                    Tu email no puede ser modificado
+                                </small>
+                            </div>
+
+                            <!-- DisplayName -->
+                            <div class="mb-4">
+                                <label for="Input.DisplayName" class="form-label fw-semibold">
+                                    <span class="me-2">🏷️</span> Nombre para Mostrar
+                                </label>
+                                <InputText @bind-Value="Input.DisplayName" 
+                                          id="Input.DisplayName" 
+                                          class="form-control form-control-lg manage-input" 
+                                          placeholder="Tu nombre público" 
+                                          maxlength="50" />
+                                <ValidationMessage For="() => Input.DisplayName" class="text-danger small mt-1" />
+                                <small class="form-text text-muted">
+                                    Este nombre se mostrará en tus intenciones no anónimas
+                                </small>
+                            </div>
+
+                            <!-- Phone Number -->
+                            <div class="mb-4">
+                                <label for="Input.PhoneNumber" class="form-label fw-semibold">
+                                    <span class="me-2">📱</span> Teléfono (opcional)
+                                </label>
+                                <InputText @bind-Value="Input.PhoneNumber" 
+                                          id="Input.PhoneNumber" 
+                                          class="form-control form-control-lg manage-input" 
+                                          placeholder="+54 9 11 1234-5678" />
+                                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger small mt-1" />
+                            </div>
+
+                            <hr class="my-4" />
+
+                            <!-- Submit Button -->
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-primary btn-lg btn-gradient-purple px-5">
+                                    <span class="me-2">💾</span> Guardar Cambios
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+
+                <!-- Additional Options -->
+                <div class="row g-3 mt-4">
+                    <div class="col-md-6">
+                        <a href="/Account/Manage/ChangePassword" class="manage-option-card">
+                            <span class="option-icon">🔐</span>
+                            <div>
+                                <h5 class="mb-1">Cambiar Contraseña</h5>
+                                <p class="text-muted mb-0 small">Actualiza tu contraseña de acceso</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="/Account/Manage/PersonalData" class="manage-option-card">
+                            <span class="option-icon">🗃️</span>
+                            <div>
+                                <h5 class="mb-1">Datos Personales</h5>
+                                <p class="text-muted mb-0 small">Descarga o elimina tus datos</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
             </div>
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" placeholder="Enter your phone number" />
-                <label for="Input.PhoneNumber" class="form-label">Phone number</label>
-                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
-            </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
-        </EditForm>
+        </div>
     </div>
 </div>
+
+<style>
+    .manage-container {
+        min-height: calc(100vh - 56px);
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    .manage-header h1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .manage-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+    }
+
+    .manage-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border: none;
+    }
+
+    .manage-card .card-header h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .manage-card .card-body {
+        padding: 2.5rem;
+    }
+
+    .manage-input {
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .manage-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .manage-input:disabled {
+        background-color: #f7fafc;
+        color: #718096;
+    }
+
+    .form-label {
+        color: #2d3748;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-text {
+        font-size: 0.85rem;
+        color: #718096;
+    }
+
+    .manage-option-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem;
+        background: white;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.3s ease;
+    }
+
+    .manage-option-card:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+
+    .option-icon {
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    .manage-option-card h5 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    @@media (max-width: 768px) {
+        .manage-card .card-body {
+            padding: 1.5rem;
+        }
+
+        .manage-option-card {
+            padding: 1rem;
+        }
+    }
+</style>
 
 @code {
     private ApplicationUser? user;
     private string? username;
     private string? phoneNumber;
+    private string? displayName;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -56,8 +251,10 @@
 
         username = await UserManager.GetUserNameAsync(user);
         phoneNumber = await UserManager.GetPhoneNumberAsync(user);
+        displayName = user.DisplayName;
 
         Input.PhoneNumber ??= phoneNumber;
+        Input.DisplayName ??= displayName;
     }
 
     private async Task OnValidSubmitAsync()
@@ -68,24 +265,42 @@
             return;
         }
 
+        // Actualizar DisplayName
+        if (Input.DisplayName != displayName)
+        {
+            user.DisplayName = Input.DisplayName?.Trim() ?? string.Empty;
+            var updateResult = await UserManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                RedirectManager.RedirectToCurrentPageWithStatus("Error: No se pudo actualizar el nombre.", HttpContext);
+                return;
+            }
+        }
+
+        // Actualizar teléfono
         if (Input.PhoneNumber != phoneNumber)
         {
             var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
             if (!setPhoneResult.Succeeded)
             {
-                RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to set phone number.", HttpContext);
+                RedirectManager.RedirectToCurrentPageWithStatus("Error: No se pudo actualizar el teléfono.", HttpContext);
                 return;
             }
         }
 
         await SignInManager.RefreshSignInAsync(user);
-        RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
+        RedirectManager.RedirectToCurrentPageWithStatus("✅ Tu perfil ha sido actualizado correctamente.", HttpContext);
     }
 
     private sealed class InputModel
     {
-        [Phone]
-        [Display(Name = "Phone number")]
+        [Required(ErrorMessage = "El nombre para mostrar es requerido")]
+        [StringLength(50, ErrorMessage = "El nombre no puede tener más de 50 caracteres.")]
+        [Display(Name = "Nombre para Mostrar")]
+        public string? DisplayName { get; set; }
+
+        [Phone(ErrorMessage = "El número de teléfono no es válido")]
+        [Display(Name = "Teléfono")]
         public string? PhoneNumber { get; set; }
     }
 }
