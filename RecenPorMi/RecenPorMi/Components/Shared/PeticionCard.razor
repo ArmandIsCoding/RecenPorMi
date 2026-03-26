@@ -1,28 +1,101 @@
 @using RecenPorMi.Data.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @inject RecenPorMi.Services.IPeticionService PeticionService
+@inject NavigationManager NavigationManager
 
 <div class="peticion-card">
     <div class="peticion-header">
-        <span class="peticion-alias">@ObtenerNombreAutor()</span>
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="peticion-alias">@ObtenerNombreAutor()</span>
+            @if (!string.IsNullOrEmpty(Peticion.ContenidoCompleto))
+            {
+                <span class="badge bg-info text-xs">📄 Con detalles</span>
+            }
+            @if (Peticion.Imagenes?.Any() == true)
+            {
+                <span class="badge bg-success text-xs">📷 @Peticion.Imagenes.Count</span>
+            }
+        </div>
         <span class="peticion-fecha">@FormatearFecha(Peticion.FechaPublicacion)</span>
     </div>
+
     <div class="peticion-contenido">
-        @Peticion.Contenido
+        @Peticion.DescripcionBreve
     </div>
+
+    <!-- Thumbnail de primera imagen si existe -->
+    @if (Peticion.Imagenes?.Any() == true)
+    {
+        var primeraImagen = Peticion.Imagenes.OrderBy(i => i.Orden).FirstOrDefault();
+        if (primeraImagen != null)
+        {
+            <div class="peticion-imagen-preview mb-2">
+                <img src="@primeraImagen.RutaImagen" 
+                     alt="Vista previa" 
+                     class="img-fluid rounded"
+                     style="max-height: 150px; width: 100%; object-fit: cover;" />
+            </div>
+        }
+    }
+
     <div class="peticion-footer">
-        <button class="btn-rezo @(rezando ? "rezando" : "")" 
-                @onclick="Rezar" 
-                disabled="@rezando">
-            <span class="emoji-rezo">🙏</span>
-            <span class="contador">@contadorLocal</span>
-        </button>
+        <div class="d-flex justify-content-between align-items-center">
+            <button class="btn-rezo @(rezando ? "rezando" : "")" 
+                    @onclick="Rezar" 
+                    disabled="@rezando">
+                <span class="emoji-rezo">🙏</span>
+                <span class="contador">@contadorLocal</span>
+            </button>
+
+            <a href="/intenciones/@Peticion.Id" class="btn-ver-detalles">
+                Ver detalles <span class="ms-1">→</span>
+            </a>
+        </div>
+
         @if (!string.IsNullOrEmpty(mensaje))
         {
-            <span class="mensaje-rezo">@mensaje</span>
+            <div class="mensaje-rezo mt-2">@mensaje</div>
         }
     </div>
 </div>
+
+<style>
+    .text-xs {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+
+    .btn-ver-detalles {
+        color: var(--primary-color, #6f42c1);
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    .btn-ver-detalles:hover {
+        background: rgba(111, 66, 193, 0.1);
+        transform: translateX(2px);
+    }
+
+    .peticion-imagen-preview {
+        margin-top: 0.75rem;
+        overflow: hidden;
+        border-radius: 8px;
+    }
+
+    .peticion-contenido {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-height: 4.5em;
+        line-height: 1.5em;
+    }
+</style>
 
 @code {
     [Parameter]

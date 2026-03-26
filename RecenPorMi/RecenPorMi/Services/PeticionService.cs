@@ -9,7 +9,8 @@ namespace RecenPorMi.Services
     public interface IPeticionService
     {
         Task<List<Peticion>> ObtenerPeticionesRecientesAsync();
-        Task<Peticion> CrearPeticionAsync(string contenido, string userId, bool publicarAnonimamente);
+        Task<Peticion?> ObtenerPeticionPorIdAsync(int id);
+        Task<Peticion> CrearPeticionAsync(string descripcionBreve, string? contenidoCompleto, string userId, bool publicarAnonimamente, List<string>? rutasImagenes = null);
         Task<bool> RegistrarRezoAsync(int peticionId, string ipAddress);
     }
 
@@ -31,11 +32,20 @@ namespace RecenPorMi.Services
                 .ToListAsync();
         }
 
-        public async Task<Peticion> CrearPeticionAsync(string contenido, string userId, bool publicarAnonimamente)
+        public async Task<Peticion?> ObtenerPeticionPorIdAsync(int id)
+        {
+            return await _context.Peticiones
+                .Include(p => p.Usuario)
+                .Include(p => p.Imagenes.OrderBy(i => i.Orden))
+                .FirstOrDefaultAsync(p => p.Id == id);
+        }
+
+        public async Task<Peticion> CrearPeticionAsync(string descripcionBreve, string? contenidoCompleto, string userId, bool publicarAnonimamente, List<string>? rutasImagenes = null)
         {
             var peticion = new Peticion
             {
-                Contenido = contenido.Trim(),
+                DescripcionBreve = descripcionBreve.Trim(),
+                ContenidoCompleto = string.IsNullOrWhiteSpace(contenidoCompleto) ? null : contenidoCompleto,
                 UserId = userId,
                 PublicarAnonimamente = publicarAnonimamente,
                 FechaPublicacion = DateTime.Now
@@ -43,6 +53,25 @@ namespace RecenPorMi.Services
 
             _context.Peticiones.Add(peticion);
             await _context.SaveChangesAsync();
+
+            // Agregar imágenes si existen
+            if (rutasImagenes != null && rutasImagenes.Any())
+            {
+                int orden = 0;
+                foreach (var ruta in rutasImagenes)
+                {
+                    var imagen = new PeticionImagen
+                    {
+                        PeticionId = peticion.Id,
+                        NombreArchivo = Path.GetFileName(ruta),
+                        RutaImagen = ruta,
+                        Orden = orden++,
+                        FechaSubida = DateTime.Now
+                    };
+                    _context.PeticionImagenes.Add(imagen);
+                }
+                await _context.SaveChangesAsync();
+            }
 
             return peticion;
         }

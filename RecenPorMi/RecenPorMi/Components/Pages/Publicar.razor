@@ -4,18 +4,20 @@
 @using RecenPorMi.Data.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @using System.Security.Claims
 @inject RecenPorMi.Services.IPeticionService PeticionService
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IWebHostEnvironment Environment
 
 <PageTitle>Publicar Intención - Recen Por Mí</PageTitle>
 
 <div class="publicar-container">
     <div class="container py-5">
         <div class="row justify-content-center">
-            <div class="col-lg-8 col-xl-6">
-                
+            <div class="col-lg-10 col-xl-9">
+
                 <div class="text-center mb-5">
                     <h1 class="display-5 fw-bold mb-3">
                         <span class="emoji-grande">✨</span> Comparte tu Intención
@@ -30,22 +32,96 @@
                         <EditForm Model="@nuevaPeticion" OnValidSubmit="PublicarPeticion">
                             <DataAnnotationsValidator />
 
+                            <!-- Descripción Breve (Obligatoria) -->
                             <div class="mb-4">
-                                <label for="contenido" class="form-label fw-semibold">
-                                    <span class="me-2">📝</span> Tu intención de oración *
+                                <label for="descripcionBreve" class="form-label fw-semibold">
+                                    <span class="me-2">📝</span> Descripción Breve * 
+                                    <span class="badge bg-secondary">@contadorBreve/200</span>
                                 </label>
-                                <InputTextArea id="contenido" 
+                                <InputTextArea id="descripcionBreve" 
                                               class="form-control form-control-lg" 
-                                              @bind-Value="nuevaPeticion.Contenido" 
-                                              placeholder="Escribe tu petición de oración..." 
-                                              rows="5"
-                                              maxlength="500" />
-                                <ValidationMessage For="@(() => nuevaPeticion.Contenido)" class="text-danger" />
+                                              @bind-Value="nuevaPeticion.DescripcionBreve"
+                                              @oninput="ActualizarContadorBreve"
+                                              placeholder="Ej: Recen por la salud de mi madre..." 
+                                              rows="3"
+                                              maxlength="200" />
+                                <ValidationMessage For="@(() => nuevaPeticion.DescripcionBreve)" class="text-danger" />
                                 <div class="form-text">
-                                    Máximo 500 caracteres. Sé respetuoso y claro.
+                                    Esta es la descripción que se mostrará en la tarjeta principal (máx. 200 caracteres)
                                 </div>
                             </div>
 
+                            <!-- Contenido Completo (Opcional) -->
+                            <div class="mb-4">
+                                <label for="contenidoCompleto" class="form-label fw-semibold">
+                                    <span class="me-2">📄</span> Contenido Completo (opcional)
+                                </label>
+                                <div class="editor-toolbar mb-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="InsertarNegrita">
+                                        <strong>B</strong>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="InsertarCursiva">
+                                        <em>I</em>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="InsertarSaltoLinea">
+                                        Salto línea
+                                    </button>
+                                </div>
+                                <InputTextArea id="contenidoCompleto" 
+                                              class="form-control" 
+                                              @bind-Value="nuevaPeticion.ContenidoCompleto" 
+                                              placeholder="Aquí puedes extenderte en detalles, antecedentes, contexto adicional..." 
+                                              rows="8" />
+                                <div class="form-text">
+                                    Puedes usar etiquetas HTML básicas: &lt;b&gt;, &lt;i&gt;, &lt;br&gt;, &lt;p&gt;
+                                </div>
+                            </div>
+
+                            <!-- Upload de Imágenes (Opcional) -->
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">
+                                    <span class="me-2">📷</span> Imágenes (opcional, máx. 5)
+                                </label>
+                                <InputFile OnChange="HandleFileSelection" 
+                                          multiple 
+                                          accept="image/*" 
+                                          class="form-control" />
+                                <div class="form-text">
+                                    Formatos: JPG, PNG, GIF. Tamaño máximo: 5MB por imagen
+                                </div>
+
+                                @if (imagenesPrevisualizacion.Any())
+                                {
+                                    <div class="row g-2 mt-2">
+                                        @for (int i = 0; i < imagenesPrevisualizacion.Count; i++)
+                                        {
+                                            var index = i; // Capturar para el closure
+                                            <div class="col-6 col-md-4 col-lg-3">
+                                                <div class="position-relative">
+                                                    <img src="@imagenesPrevisualizacion[index]" 
+                                                         class="img-thumbnail" 
+                                                         style="width: 100%; height: 150px; object-fit: cover;" 
+                                                         alt="Preview" />
+                                                    <button type="button" 
+                                                            class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1" 
+                                                            @onclick="() => EliminarImagen(index)">
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(mensajeImagenes))
+                                {
+                                    <div class="alert alert-warning mt-2">@mensajeImagenes</div>
+                                }
+                            </div>
+
+                            <hr class="my-4" />
+
+                            <!-- Anonimato -->
                             <div class="mb-4">
                                 <div class="form-check form-switch">
                                     <InputCheckbox id="publicarAnonimamente" 
@@ -56,11 +132,11 @@
                                     </label>
                                 </div>
                                 <div class="form-text">
-                                    Si está activado, tu intención aparecerá como "Anónimo". 
-                                    Si está desactivado, se mostrará tu nombre de usuario.
+                                    Si está activado, tu intención aparecerá como "Anónimo"
                                 </div>
                             </div>
 
+                            <!-- Submit Button -->
                             <div class="d-grid gap-2">
                                 <button type="submit" 
                                         class="btn btn-primary btn-lg btn-gradient-purple" 
@@ -99,23 +175,48 @@
     </div>
 </div>
 
+<style>
+    .editor-toolbar {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .img-thumbnail {
+        border-radius: 8px;
+    }
+
+    .contador-caracteres {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+</style>
+
 @code {
     private NuevaPeticionModel nuevaPeticion = new();
     private bool publicando = false;
     private string mensajePublicacion = string.Empty;
     private bool mensajeExitoso = true;
+    private string mensajeImagenes = string.Empty;
     private HubConnection? hubConnection;
     private string? userId;
 
+    // Manejo de imágenes
+    private List<string> imagenesPrevisualizacion = new();
+    private List<IBrowserFile> archivosSeleccionados = new();
+    private const int MaxImagenes = 5;
+    private const long MaxTamañoArchivo = 5 * 1024 * 1024; // 5MB
+
+    // Contador de caracteres
+    private int contadorBreve = 0;
+    private ElementReference contenidoTextArea;
+
     protected override async Task OnInitializedAsync()
     {
-        // Obtener el UserId del usuario autenticado
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
         if (string.IsNullOrEmpty(userId))
         {
-            // Si no hay usuario autenticado, redirigir al login
             NavigationManager.NavigateTo("/Account/Login", forceLoad: true);
             return;
         }
@@ -140,6 +241,84 @@
         }
     }
 
+    private void ActualizarContadorBreve(ChangeEventArgs e)
+    {
+        var texto = e.Value?.ToString() ?? string.Empty;
+        contadorBreve = texto.Length;
+    }
+
+    private async Task HandleFileSelection(InputFileChangeEventArgs e)
+    {
+        mensajeImagenes = string.Empty;
+
+        var archivos = e.GetMultipleFiles(MaxImagenes);
+
+        if (archivosSeleccionados.Count + archivos.Count > MaxImagenes)
+        {
+            mensajeImagenes = $"❌ Solo puedes subir un máximo de {MaxImagenes} imágenes.";
+            return;
+        }
+
+        foreach (var archivo in archivos)
+        {
+            // Validar tamaño
+            if (archivo.Size > MaxTamañoArchivo)
+            {
+                mensajeImagenes = $"❌ El archivo {archivo.Name} excede el tamaño máximo de 5MB.";
+                continue;
+            }
+
+            // Validar tipo
+            if (!archivo.ContentType.StartsWith("image/"))
+            {
+                mensajeImagenes = $"❌ El archivo {archivo.Name} no es una imagen válida.";
+                continue;
+            }
+
+            // Agregar archivo
+            archivosSeleccionados.Add(archivo);
+
+            // Crear preview con Data URL
+            var buffer = new byte[archivo.Size];
+            await archivo.OpenReadStream(MaxTamañoArchivo).ReadAsync(buffer);
+            var imageType = archivo.ContentType;
+            var base64 = Convert.ToBase64String(buffer);
+            var dataUrl = $"data:{imageType};base64,{base64}";
+            imagenesPrevisualizacion.Add(dataUrl);
+        }
+
+        StateHasChanged();
+    }
+
+    private void EliminarImagen(int index)
+    {
+        if (index >= 0 && index < archivosSeleccionados.Count)
+        {
+            archivosSeleccionados.RemoveAt(index);
+            imagenesPrevisualizacion.RemoveAt(index);
+            mensajeImagenes = string.Empty;
+            StateHasChanged();
+        }
+    }
+
+    private void InsertarNegrita()
+    {
+        var texto = nuevaPeticion.ContenidoCompleto ?? string.Empty;
+        nuevaPeticion.ContenidoCompleto = texto + "<b></b>";
+    }
+
+    private void InsertarCursiva()
+    {
+        var texto = nuevaPeticion.ContenidoCompleto ?? string.Empty;
+        nuevaPeticion.ContenidoCompleto = texto + "<i></i>";
+    }
+
+    private void InsertarSaltoLinea()
+    {
+        var texto = nuevaPeticion.ContenidoCompleto ?? string.Empty;
+        nuevaPeticion.ContenidoCompleto = texto + "<br>";
+    }
+
     private async Task PublicarPeticion()
     {
         if (string.IsNullOrEmpty(userId))
@@ -151,17 +330,55 @@
 
         publicando = true;
         mensajePublicacion = string.Empty;
+        mensajeImagenes = string.Empty;
 
         try
         {
+            // Guardar imágenes en el servidor
+            List<string>? rutasImagenes = null;
+
+            if (archivosSeleccionados.Any())
+            {
+                rutasImagenes = new List<string>();
+                var uploadsPath = Path.Combine(Environment.WebRootPath, "uploads", "peticiones");
+
+                // Crear directorio si no existe
+                if (!Directory.Exists(uploadsPath))
+                {
+                    Directory.CreateDirectory(uploadsPath);
+                }
+
+                foreach (var archivo in archivosSeleccionados)
+                {
+                    var nombreUnico = $"{Guid.NewGuid()}{Path.GetExtension(archivo.Name)}";
+                    var rutaCompleta = Path.Combine(uploadsPath, nombreUnico);
+                    var rutaRelativa = $"/uploads/peticiones/{nombreUnico}";
+
+                    using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+                    {
+                        await archivo.OpenReadStream(MaxTamañoArchivo).CopyToAsync(stream);
+                    }
+
+                    rutasImagenes.Add(rutaRelativa);
+                }
+            }
+
+            // Crear petición con el nuevo servicio
             await PeticionService.CrearPeticionAsync(
-                nuevaPeticion.Contenido, 
+                nuevaPeticion.DescripcionBreve,
+                nuevaPeticion.ContenidoCompleto,
                 userId,
-                nuevaPeticion.PublicarAnonimamente);
+                nuevaPeticion.PublicarAnonimamente,
+                rutasImagenes);
 
             mensajePublicacion = "✅ ¡Tu intención ha sido publicada con éxito!";
             mensajeExitoso = true;
+
+            // Limpiar formulario
             nuevaPeticion = new NuevaPeticionModel();
+            archivosSeleccionados.Clear();
+            imagenesPrevisualizacion.Clear();
+            contadorBreve = 0;
 
             // Notificar a través de SignalR
             if (hubConnection?.State == Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected)
@@ -169,8 +386,8 @@
                 await hubConnection.SendAsync("NotificarNuevaPeticion");
             }
 
-            // Limpiar mensaje y redirigir después de 3 segundos
-            await Task.Delay(3000);
+            // Redirigir después de 2 segundos
+            await Task.Delay(2000);
             NavigationManager.NavigateTo("/");
         }
         catch (Exception ex)
@@ -196,9 +413,11 @@
 
     public class NuevaPeticionModel
     {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La intención es requerida")]
-        [System.ComponentModel.DataAnnotations.MaxLength(500)]
-        public string Contenido { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La descripción breve es requerida")]
+        [System.ComponentModel.DataAnnotations.MaxLength(200, ErrorMessage = "La descripción no puede exceder 200 caracteres")]
+        public string DescripcionBreve { get; set; } = string.Empty;
+
+        public string? ContenidoCompleto { get; set; }
 
         public bool PublicarAnonimamente { get; set; } = true;
     }

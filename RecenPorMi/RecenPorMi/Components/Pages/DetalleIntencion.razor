@@ -1,0 +1,366 @@
+@page "/intenciones/{id:int}"
+@rendermode InteractiveServer
+@using RecenPorMi.Data.Models
+@using Microsoft.AspNetCore.SignalR.Client
+@inject RecenPorMi.Services.IPeticionService PeticionService
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>@(peticion?.DescripcionBreve ?? "Intención") - Recen Por Mí</PageTitle>
+
+@if (cargando)
+{
+    <div class="container py-5">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-3 text-muted">Cargando intención...</p>
+        </div>
+    </div>
+}
+else if (peticion == null)
+{
+    <div class="container py-5">
+        <div class="alert alert-warning text-center">
+            <h3>⚠️ Intención no encontrada</h3>
+            <p>La intención que buscas no existe o ha sido eliminada.</p>
+            <a href="/" class="btn btn-primary mt-3">
+                <span class="me-2">←</span> Volver al inicio
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="detalle-intencion-container">
+        <div class="container py-5">
+            <div class="row">
+                <!-- Columna Principal -->
+                <div class="col-lg-8">
+                    
+                    <!-- Encabezado -->
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-start mb-3">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-primary me-2">🙏 Intención</span>
+                                        @if (!string.IsNullOrEmpty(peticion.ContenidoCompleto))
+                                        {
+                                            <span class="badge bg-info me-2">📄 Con detalles</span>
+                                        }
+                                        @if (peticion.Imagenes?.Any() == true)
+                                        {
+                                            <span class="badge bg-success">📷 @peticion.Imagenes.Count imagen@(peticion.Imagenes.Count > 1 ? "es" : "")</span>
+                                        }
+                                    </div>
+                                    <h1 class="h3 mb-3 fw-bold">@peticion.DescripcionBreve</h1>
+                                    <div class="text-muted small">
+                                        <span class="me-3">
+                                            👤 @(peticion.PublicarAnonimamente ? "Anónimo" : (peticion.Usuario?.DisplayName ?? "Usuario"))
+                                        </span>
+                                        <span>📅 @peticion.FechaPublicacion.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Galería de Imágenes -->
+                    @if (peticion.Imagenes?.Any() == true)
+                    {
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-body p-4">
+                                <h5 class="mb-3 fw-semibold">
+                                    <span class="me-2">📷</span> Imágenes
+                                </h5>
+                                <div class="row g-3">
+                                    @foreach (var imagen in peticion.Imagenes.OrderBy(i => i.Orden))
+                                    {
+                                        <div class="col-6 col-md-4">
+                                            <div class="ratio ratio-1x1">
+                                                <img src="@imagen.RutaImagen" 
+                                                     alt="Imagen de la intención" 
+                                                     class="img-thumbnail rounded cursor-pointer"
+                                                     style="object-fit: cover; cursor: pointer;"
+                                                     @onclick="() => AbrirImagenCompleta(imagen.RutaImagen)" />
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Contenido Completo -->
+                    @if (!string.IsNullOrEmpty(peticion.ContenidoCompleto))
+                    {
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-body p-4">
+                                <h5 class="mb-3 fw-semibold">
+                                    <span class="me-2">📝</span> Detalles de la intención
+                                </h5>
+                                <div class="contenido-completo">
+                                    @((MarkupString)peticion.ContenidoCompleto)
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-lg-4">
+                    
+                    <!-- Panel de Oración -->
+                    <div class="card shadow border-0 sticky-top" style="top: 20px;">
+                        <div class="card-body p-4 text-center">
+                            <div class="mb-4">
+                                <div class="display-1 text-primary mb-2">@peticion.ContadorRezos</div>
+                                <div class="text-muted">persona@(peticion.ContadorRezos != 1 ? "s han rezado" : " ha rezado")</div>
+                            </div>
+
+                            <button class="btn btn-primary btn-lg w-100 mb-3" 
+                                    @onclick="RegistrarRezo"
+                                    disabled="@registrandoRezo">
+                                @if (registrandoRezo)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Registrando...</span>
+                                }
+                                else if (yaRezado)
+                                {
+                                    <span>✅ Ya rezaste por esta intención</span>
+                                }
+                                else
+                                {
+                                    <span class="me-2">🙏</span>
+                                    <span>Rezar por esta intención</span>
+                                }
+                            </button>
+
+                            @if (mensajeRezo != null)
+                            {
+                                <div class="alert @(mensajeRezoExito ? "alert-success" : "alert-danger") small mb-0">
+                                    @mensajeRezo
+                                </div>
+                            }
+
+                            <hr class="my-4" />
+
+                            <a href="/" class="btn btn-outline-secondary w-100">
+                                <span class="me-2">←</span> Volver al inicio
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para imagen completa -->
+    @if (!string.IsNullOrEmpty(imagenSeleccionada))
+    {
+        <div class="modal-overlay" @onclick="CerrarImagenCompleta">
+            <div class="modal-imagen-container" @onclick:stopPropagation="true">
+                <button class="btn-cerrar-modal" @onclick="CerrarImagenCompleta">
+                    ✕
+                </button>
+                <img src="@imagenSeleccionada" alt="Imagen ampliada" class="img-fluid" />
+            </div>
+        </div>
+    }
+}
+
+<style>
+    .contenido-completo {
+        line-height: 1.8;
+        font-size: 1.05rem;
+    }
+
+    .contenido-completo p {
+        margin-bottom: 1rem;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 20px;
+    }
+
+    .modal-imagen-container {
+        position: relative;
+        max-width: 90%;
+        max-height: 90vh;
+    }
+
+    .modal-imagen-container img {
+        max-height: 90vh;
+        width: auto;
+        border-radius: 8px;
+    }
+
+    .btn-cerrar-modal {
+        position: absolute;
+        top: -40px;
+        right: 0;
+        background: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .btn-cerrar-modal:hover {
+        background: #f8f9fa;
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .cursor-pointer:hover {
+        transform: scale(1.05);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Peticion? peticion;
+    private bool cargando = true;
+    private bool registrandoRezo = false;
+    private bool yaRezado = false;
+    private string? mensajeRezo;
+    private bool mensajeRezoExito = false;
+    private HubConnection? hubConnection;
+    private string? imagenSeleccionada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InicializarSignalR();
+        await CargarPeticion();
+    }
+
+    private async Task InicializarSignalR()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/peticionhub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            hubConnection.On<int>("RezoRegistrado", async (peticionId) =>
+            {
+                if (peticionId == Id && peticion != null)
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await CargarPeticion();
+                    });
+                }
+            });
+
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al inicializar SignalR: {ex.Message}");
+        }
+    }
+
+    private async Task CargarPeticion()
+    {
+        try
+        {
+            cargando = true;
+            peticion = await PeticionService.ObtenerPeticionPorIdAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar petición: {ex.Message}");
+            peticion = null;
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RegistrarRezo()
+    {
+        if (yaRezado || peticion == null)
+            return;
+
+        registrandoRezo = true;
+        mensajeRezo = null;
+
+        try
+        {
+            var ipAddress = "127.0.0.1"; // En producción, obtener la IP real
+            await PeticionService.RegistrarRezoAsync(peticion.Id, ipAddress);
+
+            yaRezado = true;
+            mensajeRezo = "🙏 Gracias por tu oración";
+            mensajeRezoExito = true;
+
+            // Notificar a través de SignalR
+            if (hubConnection?.State == Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected)
+            {
+                await hubConnection.SendAsync("NotificarRezo", peticion.Id);
+            }
+
+            // Recargar para actualizar contador
+            await CargarPeticion();
+        }
+        catch (Exception ex)
+        {
+            mensajeRezo = "Error al registrar el rezo. Intenta nuevamente.";
+            mensajeRezoExito = false;
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            registrandoRezo = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AbrirImagenCompleta(string rutaImagen)
+    {
+        imagenSeleccionada = rutaImagen;
+    }
+
+    private void CerrarImagenCompleta()
+    {
+        imagenSeleccionada = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
