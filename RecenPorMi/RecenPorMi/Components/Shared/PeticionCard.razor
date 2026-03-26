@@ -1,0 +1,124 @@
+@using RecenPorMi.Data.Models
+@using Microsoft.AspNetCore.SignalR.Client
+@inject RecenPorMi.Services.IPeticionService PeticionService
+
+<div class="peticion-card">
+    <div class="peticion-header">
+        <span class="peticion-alias">@Peticion.Alias</span>
+        <span class="peticion-fecha">@FormatearFecha(Peticion.FechaPublicacion)</span>
+    </div>
+    <div class="peticion-contenido">
+        @Peticion.Contenido
+    </div>
+    <div class="peticion-footer">
+        <button class="btn-rezo @(rezando ? "rezando" : "")" 
+                @onclick="Rezar" 
+                disabled="@rezando">
+            <span class="emoji-rezo">🙏</span>
+            <span class="contador">@contadorLocal</span>
+        </button>
+        @if (!string.IsNullOrEmpty(mensaje))
+        {
+            <span class="mensaje-rezo">@mensaje</span>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Peticion Peticion { get; set; } = null!;
+
+    [Parameter]
+    public HubConnection? HubConnection { get; set; }
+
+    [Parameter]
+    public EventCallback OnRezoRegistrado { get; set; }
+
+    private int contadorLocal;
+    private bool rezando = false;
+    private string mensaje = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        contadorLocal = Peticion.ContadorRezos;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && HubConnection != null)
+        {
+            HubConnection.On<int, int>("RezoActualizado", (peticionId, nuevoContador) =>
+            {
+                if (peticionId == Peticion.Id)
+                {
+                    contadorLocal = nuevoContador;
+                    InvokeAsync(StateHasChanged);
+                }
+            });
+        }
+    }
+
+    private async Task Rezar()
+    {
+        if (rezando) return;
+
+        rezando = true;
+        mensaje = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var ipAddress = "127.0.0.1"; // En producción, obtener la IP real del usuario
+            var exito = await PeticionService.RegistrarRezoAsync(Peticion.Id, ipAddress);
+
+            if (exito)
+            {
+                contadorLocal++;
+                mensaje = "🕊️ Tu oración ha sido registrada";
+
+                // Notificar a través de SignalR
+                if (HubConnection != null && HubConnection.State == HubConnectionState.Connected)
+                {
+                    await HubConnection.SendAsync("NotificarRezoActualizado", Peticion.Id, contadorLocal);
+                }
+
+                await OnRezoRegistrado.InvokeAsync();
+            }
+            else
+            {
+                mensaje = "Ya rezaste por esta intención recientemente";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = "Error al registrar el rezo";
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            rezando = false;
+            StateHasChanged();
+
+            // Limpiar mensaje después de 3 segundos
+            await Task.Delay(3000);
+            mensaje = string.Empty;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatearFecha(DateTime fecha)
+    {
+        var diferencia = DateTime.Now - fecha;
+
+        if (diferencia.TotalMinutes < 1)
+            return "Hace un momento";
+        if (diferencia.TotalHours < 1)
+            return $"Hace {(int)diferencia.TotalMinutes} min";
+        if (diferencia.TotalDays < 1)
+            return $"Hace {(int)diferencia.TotalHours}h";
+        if (diferencia.TotalDays < 7)
+            return $"Hace {(int)diferencia.TotalDays}d";
+
+        return fecha.ToString("dd/MM/yyyy");
+    }
+}

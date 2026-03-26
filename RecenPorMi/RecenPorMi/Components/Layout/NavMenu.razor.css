@@ -1,0 +1,73 @@
+/* Gradiente personalizado para el navbar */
+.bg-gradient-purple {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Mejorar el contraste de los links */
+.navbar-dark .nav-link {
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.navbar-dark .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+.navbar-dark .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.25);
+    color: white;
+    font-weight: 600;
+}
+
+/* Botón de logout estilizado como nav-link */
+.navbar-dark .btn-link {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.navbar-dark .btn-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white !important;
+}
+
+/* Logo/Brand */
+.navbar-brand {
+    font-size: 1.25rem;
+    transition: transform 0.2s ease;
+}
+
+.navbar-brand:hover {
+    transform: scale(1.05);
+}
+
+/* Sticky navbar */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+/* Mobile: Mejorar el menú colapsado */
+@media (max-width: 991.98px) {
+    .navbar-collapse {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1rem;
+        border-radius: 0 0 8px 8px;
+        margin-top: 0.5rem;
+    }
+
+    .navbar-nav {
+        gap: 0.25rem;
+    }
+
+    .navbar-dark .nav-link {
+        width: 100%;
+    }
+}

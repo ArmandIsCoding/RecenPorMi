@@ -1,0 +1,204 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using RecenPorMi.Data.Models
+@using RecenPorMi.Components.Shared
+@using Microsoft.AspNetCore.SignalR.Client
+@inject RecenPorMi.Services.IPeticionService PeticionService
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Recen Por Mí - Intenciones de Oración</PageTitle>
+
+<div class="home-container">
+    <div class="header-section">
+        <h1 class="titulo-principal">🙏 Recen Por Mí</h1>
+        <p class="subtitulo">"Recen por mí" - Papa Francisco</p>
+    </div>
+
+    <div class="formulario-seccion">
+        <h2>Comparte tu intención</h2>
+        <EditForm Model="@nuevaPeticion" OnValidSubmit="PublicarPeticion">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label for="alias">Tu nombre (opcional)</label>
+                <InputText id="alias" 
+                          class="form-control" 
+                          @bind-Value="nuevaPeticion.Alias" 
+                          placeholder="Anónimo" 
+                          maxlength="50" />
+            </div>
+
+            <div class="form-group">
+                <label for="contenido">Tu intención de oración *</label>
+                <InputTextArea id="contenido" 
+                              class="form-control" 
+                              @bind-Value="nuevaPeticion.Contenido" 
+                              placeholder="Escribe tu petición..." 
+                              rows="3"
+                              maxlength="500" />
+                <ValidationMessage For="@(() => nuevaPeticion.Contenido)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-publicar" disabled="@publicando">
+                @if (publicando)
+                {
+                    <span>Publicando...</span>
+                }
+                else
+                {
+                    <span>✨ Publicar Intención</span>
+                }
+            </button>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(mensajePublicacion))
+        {
+            <div class="alert alert-success mt-3">@mensajePublicacion</div>
+        }
+    </div>
+
+    <div class="feed-seccion">
+        <h2>Intenciones Recientes</h2>
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else if (peticiones == null || !peticiones.Any())
+        {
+            <div class="sin-peticiones">
+                <p>Todavía no hay intenciones publicadas. ¡Sé el primero! 🙏</p>
+            </div>
+        }
+        else
+        {
+            <div class="peticiones-lista">
+                @foreach (var peticion in peticiones)
+                {
+                    <PeticionCard Peticion="@peticion" 
+                                 HubConnection="@hubConnection" 
+                                 OnRezoRegistrado="@CargarPeticiones" />
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Peticion>? peticiones;
+    private NuevaPeticionModel nuevaPeticion = new();
+    private bool cargando = true;
+    private bool publicando = false;
+    private string mensajePublicacion = string.Empty;
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InicializarSignalR();
+        await CargarPeticiones();
+    }
+
+    private async Task InicializarSignalR()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/peticionhub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            hubConnection.On("NuevaPeticionPublicada", async () =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    await CargarPeticiones();
+                });
+            });
+
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al inicializar SignalR: {ex.Message}");
+        }
+    }
+
+    private async Task CargarPeticiones()
+    {
+        try
+        {
+            cargando = true;
+            peticiones = await PeticionService.ObtenerPeticionesRecientesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar peticiones: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PublicarPeticion()
+    {
+        publicando = true;
+        mensajePublicacion = string.Empty;
+
+        try
+        {
+            await PeticionService.CrearPeticionAsync(
+                nuevaPeticion.Contenido, 
+                nuevaPeticion.Alias);
+
+            mensajePublicacion = "✅ Tu intención ha sido publicada";
+            nuevaPeticion = new NuevaPeticionModel();
+
+            // Notificar a través de SignalR
+            if (hubConnection?.State == HubConnectionState.Connected)
+            {
+                await hubConnection.SendAsync("NotificarNuevaPeticion");
+            }
+
+            await CargarPeticiones();
+
+            // Limpiar mensaje después de 3 segundos
+            await Task.Delay(3000);
+            mensajePublicacion = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            mensajePublicacion = "❌ Error al publicar la intención";
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            publicando = false;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+    public class NuevaPeticionModel
+    {
+        public string Alias { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La intención es requerida")]
+        [System.ComponentModel.DataAnnotations.MaxLength(500)]
+        public string Contenido { get; set; } = string.Empty;
+    }
+}
+
