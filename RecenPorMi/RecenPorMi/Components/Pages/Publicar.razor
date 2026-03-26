@@ -1,0 +1,180 @@
+@page "/publicar"
+@rendermode InteractiveServer
+@using RecenPorMi.Data.Models
+@using Microsoft.AspNetCore.SignalR.Client
+@inject RecenPorMi.Services.IPeticionService PeticionService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Publicar Intención - Recen Por Mí</PageTitle>
+
+<div class="publicar-container">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-xl-6">
+                
+                <div class="text-center mb-5">
+                    <h1 class="display-5 fw-bold mb-3">
+                        <span class="emoji-grande">✨</span> Comparte tu Intención
+                    </h1>
+                    <p class="lead text-muted">
+                        Deja que la comunidad rece por ti. Cada oración cuenta. 🙏
+                    </p>
+                </div>
+
+                <div class="card shadow-lg border-0">
+                    <div class="card-body p-4 p-md-5">
+                        <EditForm Model="@nuevaPeticion" OnValidSubmit="PublicarPeticion">
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-4">
+                                <label for="alias" class="form-label fw-semibold">
+                                    <span class="me-2">👤</span> Tu nombre (opcional)
+                                </label>
+                                <InputText id="alias" 
+                                          class="form-control form-control-lg" 
+                                          @bind-Value="nuevaPeticion.Alias" 
+                                          placeholder="Anónimo" 
+                                          maxlength="50" />
+                                <div class="form-text">
+                                    Si no ingresas un nombre, aparecerás como "Anónimo"
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="contenido" class="form-label fw-semibold">
+                                    <span class="me-2">📝</span> Tu intención de oración *
+                                </label>
+                                <InputTextArea id="contenido" 
+                                              class="form-control form-control-lg" 
+                                              @bind-Value="nuevaPeticion.Contenido" 
+                                              placeholder="Escribe tu petición de oración..." 
+                                              rows="5"
+                                              maxlength="500" />
+                                <ValidationMessage For="@(() => nuevaPeticion.Contenido)" class="text-danger" />
+                                <div class="form-text">
+                                    Máximo 500 caracteres. Sé respetuoso y claro.
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" 
+                                        class="btn btn-primary btn-lg btn-gradient-purple" 
+                                        disabled="@publicando">
+                                    @if (publicando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span>Publicando...</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="me-2">🙏</span>
+                                        <span>Publicar Intención</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+
+                        @if (!string.IsNullOrEmpty(mensajePublicacion))
+                        {
+                            <div class="alert @(mensajeExitoso ? "alert-success" : "alert-danger") mt-4 fade-in" role="alert">
+                                <strong>@mensajePublicacion</strong>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <a href="/" class="btn btn-outline-secondary">
+                        <span class="me-2">←</span> Volver al inicio
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private NuevaPeticionModel nuevaPeticion = new();
+    private bool publicando = false;
+    private string mensajePublicacion = string.Empty;
+    private bool mensajeExitoso = true;
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InicializarSignalR();
+    }
+
+    private async Task InicializarSignalR()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/peticionhub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al inicializar SignalR: {ex.Message}");
+        }
+    }
+
+    private async Task PublicarPeticion()
+    {
+        publicando = true;
+        mensajePublicacion = string.Empty;
+
+        try
+        {
+            await PeticionService.CrearPeticionAsync(
+                nuevaPeticion.Contenido, 
+                nuevaPeticion.Alias);
+
+            mensajePublicacion = "✅ ¡Tu intención ha sido publicada con éxito!";
+            mensajeExitoso = true;
+            nuevaPeticion = new NuevaPeticionModel();
+
+            // Notificar a través de SignalR
+            if (hubConnection?.State == Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected)
+            {
+                await hubConnection.SendAsync("NotificarNuevaPeticion");
+            }
+
+            // Limpiar mensaje y redirigir después de 3 segundos
+            await Task.Delay(3000);
+            NavigationManager.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            mensajePublicacion = "❌ Error al publicar la intención. Intenta nuevamente.";
+            mensajeExitoso = false;
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            publicando = false;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+    public class NuevaPeticionModel
+    {
+        public string Alias { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La intención es requerida")]
+        [System.ComponentModel.DataAnnotations.MaxLength(500)]
+        public string Contenido { get; set; } = string.Empty;
+    }
+}

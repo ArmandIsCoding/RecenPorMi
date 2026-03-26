@@ -9,93 +9,104 @@
 
 <PageTitle>Recen Por Mí - Intenciones de Oración</PageTitle>
 
-<div class="home-container">
-    <div class="header-section">
-        <h1 class="titulo-principal">🙏 Recen Por Mí</h1>
-        <p class="subtitulo">"Recen por mí" - Papa Francisco</p>
-    </div>
-
-    <div class="formulario-seccion">
-        <h2>Comparte tu intención</h2>
-        <EditForm Model="@nuevaPeticion" OnValidSubmit="PublicarPeticion">
-            <DataAnnotationsValidator />
-
-            <div class="form-group">
-                <label for="alias">Tu nombre (opcional)</label>
-                <InputText id="alias" 
-                          class="form-control" 
-                          @bind-Value="nuevaPeticion.Alias" 
-                          placeholder="Anónimo" 
-                          maxlength="50" />
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container py-5">
+        <div class="row align-items-center">
+            <div class="col-lg-6 text-center text-lg-start mb-4 mb-lg-0">
+                <h1 class="display-3 fw-bold mb-4">
+                    🙏 Recen Por Mí
+                </h1>
+                <p class="lead mb-4 text-white-70">
+                    <em>"Recen por mí"</em> - Papa Francisco
+                </p>
+                <p class="fs-5 mb-4 text-white-90">
+                    Una comunidad unida en oración. Comparte tus intenciones y reza por los demás. 
+                    Juntos somos más fuertes en la fe.
+                </p>
+                <div class="d-flex gap-3 flex-wrap justify-content-center justify-content-lg-start">
+                    <a href="/publicar" class="btn btn-light btn-lg px-4 shadow">
+                        <span class="me-2">✨</span> Publicar Intención
+                    </a>
+                    <a href="#intenciones" class="btn btn-outline-light btn-lg px-4">
+                        <span class="me-2">👁️</span> Ver Intenciones
+                    </a>
+                </div>
             </div>
-
-            <div class="form-group">
-                <label for="contenido">Tu intención de oración *</label>
-                <InputTextArea id="contenido" 
-                              class="form-control" 
-                              @bind-Value="nuevaPeticion.Contenido" 
-                              placeholder="Escribe tu petición..." 
-                              rows="3"
-                              maxlength="500" />
-                <ValidationMessage For="@(() => nuevaPeticion.Contenido)" />
+            <div class="col-lg-6">
+                <div class="hero-stats">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-number">@(peticiones?.Count ?? 0)</div>
+                                <div class="stat-label">Intenciones</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-number">@TotalRezos</div>
+                                <div class="stat-label">Oraciones</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <button type="submit" class="btn btn-primary btn-publicar" disabled="@publicando">
-                @if (publicando)
-                {
-                    <span>Publicando...</span>
-                }
-                else
-                {
-                    <span>✨ Publicar Intención</span>
-                }
-            </button>
-        </EditForm>
-
-        @if (!string.IsNullOrEmpty(mensajePublicacion))
-        {
-            <div class="alert alert-success mt-3">@mensajePublicacion</div>
-        }
+        </div>
     </div>
+</section>
 
-    <div class="feed-seccion">
-        <h2>Intenciones Recientes</h2>
+<!-- Sección de Intenciones -->
+<section class="intenciones-section py-5" id="intenciones">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-6 fw-bold mb-3">Intenciones Recientes</h2>
+            <p class="lead text-muted">Únete en oración con nuestra comunidad</p>
+        </div>
 
         @if (cargando)
         {
             <div class="text-center py-5">
-                <div class="spinner-border" role="status">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
                     <span class="visually-hidden">Cargando...</span>
                 </div>
+                <p class="mt-3 text-muted">Cargando intenciones...</p>
             </div>
         }
         else if (peticiones == null || !peticiones.Any())
         {
-            <div class="sin-peticiones">
-                <p>Todavía no hay intenciones publicadas. ¡Sé el primero! 🙏</p>
+            <div class="empty-state py-5 text-center">
+                <div class="mb-4">
+                    <span style="font-size: 4rem;">🙏</span>
+                </div>
+                <h3 class="mb-3">No hay intenciones publicadas aún</h3>
+                <p class="text-muted mb-4">¡Sé el primero en compartir una intención de oración!</p>
+                <a href="/publicar" class="btn btn-primary btn-lg">
+                    <span class="me-2">✨</span> Publicar Primera Intención
+                </a>
             </div>
         }
         else
         {
-            <div class="peticiones-lista">
+            <div class="row g-4">
                 @foreach (var peticion in peticiones)
                 {
-                    <PeticionCard Peticion="@peticion" 
-                                 HubConnection="@hubConnection" 
-                                 OnRezoRegistrado="@CargarPeticiones" />
+                    <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                        <PeticionCard Peticion="@peticion" 
+                                     HubConnection="@hubConnection" 
+                                     OnRezoRegistrado="@CargarPeticiones" />
+                    </div>
                 }
             </div>
         }
     </div>
-</div>
+</section>
 
 @code {
     private List<Peticion>? peticiones;
-    private NuevaPeticionModel nuevaPeticion = new();
     private bool cargando = true;
-    private bool publicando = false;
-    private string mensajePublicacion = string.Empty;
     private HubConnection? hubConnection;
+
+    private int TotalRezos => peticiones?.Sum(p => p.ContadorRezos) ?? 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -146,59 +157,12 @@
         }
     }
 
-    private async Task PublicarPeticion()
-    {
-        publicando = true;
-        mensajePublicacion = string.Empty;
-
-        try
-        {
-            await PeticionService.CrearPeticionAsync(
-                nuevaPeticion.Contenido, 
-                nuevaPeticion.Alias);
-
-            mensajePublicacion = "✅ Tu intención ha sido publicada";
-            nuevaPeticion = new NuevaPeticionModel();
-
-            // Notificar a través de SignalR
-            if (hubConnection?.State == HubConnectionState.Connected)
-            {
-                await hubConnection.SendAsync("NotificarNuevaPeticion");
-            }
-
-            await CargarPeticiones();
-
-            // Limpiar mensaje después de 3 segundos
-            await Task.Delay(3000);
-            mensajePublicacion = string.Empty;
-        }
-        catch (Exception ex)
-        {
-            mensajePublicacion = "❌ Error al publicar la intención";
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-        finally
-        {
-            publicando = false;
-            StateHasChanged();
-        }
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (hubConnection != null)
         {
             await hubConnection.DisposeAsync();
         }
-    }
-
-    public class NuevaPeticionModel
-    {
-        public string Alias { get; set; } = string.Empty;
-
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La intención es requerida")]
-        [System.ComponentModel.DataAnnotations.MaxLength(500)]
-        public string Contenido { get; set; } = string.Empty;
     }
 }
 
