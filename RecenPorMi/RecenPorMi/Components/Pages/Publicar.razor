@@ -339,37 +339,55 @@
 
             if (archivosSeleccionados.Any())
             {
+                Console.WriteLine($"Procesando {archivosSeleccionados.Count} imágenes...");
                 rutasImagenes = new List<string>();
                 var uploadsPath = Path.Combine(Environment.WebRootPath, "uploads", "peticiones");
 
                 // Crear directorio si no existe
                 if (!Directory.Exists(uploadsPath))
                 {
+                    Console.WriteLine($"Creando directorio: {uploadsPath}");
                     Directory.CreateDirectory(uploadsPath);
                 }
 
                 foreach (var archivo in archivosSeleccionados)
                 {
-                    var nombreUnico = $"{Guid.NewGuid()}{Path.GetExtension(archivo.Name)}";
-                    var rutaCompleta = Path.Combine(uploadsPath, nombreUnico);
-                    var rutaRelativa = $"/uploads/peticiones/{nombreUnico}";
-
-                    using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+                    try
                     {
-                        await archivo.OpenReadStream(MaxTamañoArchivo).CopyToAsync(stream);
-                    }
+                        var nombreUnico = $"{Guid.NewGuid()}{Path.GetExtension(archivo.Name)}";
+                        var rutaCompleta = Path.Combine(uploadsPath, nombreUnico);
+                        var rutaRelativa = $"/uploads/peticiones/{nombreUnico}";
 
-                    rutasImagenes.Add(rutaRelativa);
+                        Console.WriteLine($"Guardando imagen: {nombreUnico}");
+
+                        using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+                        {
+                            await archivo.OpenReadStream(MaxTamañoArchivo).CopyToAsync(stream);
+                        }
+
+                        rutasImagenes.Add(rutaRelativa);
+                        Console.WriteLine($"Imagen guardada exitosamente: {rutaRelativa}");
+                    }
+                    catch (Exception exImg)
+                    {
+                        Console.WriteLine($"Error al guardar imagen {archivo.Name}: {exImg.Message}");
+                        Console.WriteLine($"Stack trace: {exImg.StackTrace}");
+                        throw new Exception($"Error al guardar imagen {archivo.Name}: {exImg.Message}", exImg);
+                    }
                 }
             }
 
             // Crear petición con el nuevo servicio
+            Console.WriteLine($"Creando petición - Breve: {nuevaPeticion.DescripcionBreve?.Length ?? 0} chars, Completo: {nuevaPeticion.ContenidoCompleto?.Length ?? 0} chars, Imágenes: {rutasImagenes?.Count ?? 0}");
+
             await PeticionService.CrearPeticionAsync(
                 nuevaPeticion.DescripcionBreve,
                 nuevaPeticion.ContenidoCompleto,
                 userId,
                 nuevaPeticion.PublicarAnonimamente,
                 rutasImagenes);
+
+            Console.WriteLine("Petición creada exitosamente");
 
             mensajePublicacion = "✅ ¡Tu intención ha sido publicada con éxito!";
             mensajeExitoso = true;
@@ -392,9 +410,15 @@
         }
         catch (Exception ex)
         {
-            mensajePublicacion = "❌ Error al publicar la intención. Intenta nuevamente.";
+            mensajePublicacion = $"❌ Error al publicar la intención: {ex.Message}";
             mensajeExitoso = false;
-            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"Error completo: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                Console.WriteLine($"Inner stack trace: {ex.InnerException.StackTrace}");
+            }
         }
         finally
         {

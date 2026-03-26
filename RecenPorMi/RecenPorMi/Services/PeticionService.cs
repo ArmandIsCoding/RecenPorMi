@@ -27,6 +27,7 @@ namespace RecenPorMi.Services
         {
             return await _context.Peticiones
                 .Include(p => p.Usuario) // Incluir usuario para mostrar nombre real
+                .Include(p => p.Imagenes) // Incluir imágenes asociadas
                 .OrderByDescending(p => p.FechaPublicacion)
                 .Take(50)
                 .ToListAsync();
